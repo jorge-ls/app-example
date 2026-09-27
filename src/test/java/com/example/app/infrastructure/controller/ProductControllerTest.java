@@ -1,6 +1,7 @@
 package com.example.app.infrastructure.controller;
 
 import com.example.app.application.service.ProductService;
+import com.example.app.domain.exception.ProductNotFoundException;
 import com.example.app.domain.model.Product;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,7 +63,7 @@ class ProductControllerTest {
 
     @Test
     void getProductById_WhenProductExists_ShouldReturnProduct() throws Exception {
-        when(productService.getProductById(1L)).thenReturn(Optional.of(testProduct));
+        when(productService.getProductById(1L)).thenReturn(testProduct);
 
         mockMvc.perform(get("/api/products/1"))
                 .andExpect(status().isOk())
@@ -72,10 +73,15 @@ class ProductControllerTest {
 
     @Test
     void getProductById_WhenProductNotExists_ShouldReturnNotFound() throws Exception {
-        when(productService.getProductById(999L)).thenReturn(Optional.empty());
+        when(productService.getProductById(999L))
+                .thenThrow(new ProductNotFoundException(999L));
 
         mockMvc.perform(get("/api/products/999"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Product not found with id: 999"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test
@@ -110,7 +116,7 @@ class ProductControllerTest {
     @Test
     void updateProduct_WhenProductNotExists_ShouldReturnNotFound() throws Exception {
         when(productService.updateProduct(eq(999L), any(), any(), any(), any()))
-                .thenThrow(new RuntimeException("Product not found"));
+                .thenThrow(new ProductNotFoundException(999L));
 
         ProductController.CreateProductRequest request = new ProductController.CreateProductRequest(
                 "Updated Product", "Updated Description", new BigDecimal("25.99"), 15
@@ -119,7 +125,11 @@ class ProductControllerTest {
         mockMvc.perform(put("/api/products/999")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Product not found with id: 999"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test
@@ -130,7 +140,14 @@ class ProductControllerTest {
 
     @Test
     void deleteProduct_WhenProductNotExists_ShouldReturnNotFound() throws Exception {
+        when(productService.deleteProduct(999L))
+                .thenThrow(new ProductNotFoundException(999L));
+
         mockMvc.perform(delete("/api/products/999"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Product not found with id: 999"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 }
