@@ -19,6 +19,7 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -140,8 +141,8 @@ class ProductControllerTest {
 
     @Test
     void deleteProduct_WhenProductNotExists_ShouldReturnNotFound() throws Exception {
-        when(productService.deleteProduct(999L))
-                .thenThrow(new ProductNotFoundException(999L));
+        doThrow(new ProductNotFoundException(999L))
+                .when(productService).deleteProduct(999L);
 
         mockMvc.perform(delete("/api/products/999"))
                 .andExpect(status().isNotFound())
