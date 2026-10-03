@@ -31,7 +31,7 @@ class ProductRepositoryImplTest {
 
     @BeforeEach
     void setUp() {
-        testEntity = new ProductEntity(1L, "Test Product", "Test Description", new BigDecimal("19.99"), 10);
+        testEntity = entity(1L, "Test Product", "Test Description", new BigDecimal("19.99"), 10);
         testProduct = new Product(1L, "Test Product", "Test Description", new BigDecimal("19.99"), 10);
     }
 
@@ -73,7 +73,7 @@ class ProductRepositoryImplTest {
     void findAll_ShouldReturnAllProducts() {
         List<ProductEntity> entities = Arrays.asList(
                 testEntity,
-                new ProductEntity(2L, "Product 2", "Description 2", new BigDecimal("29.99"), 5)
+                entity(2L, "Product 2", "Description 2", new BigDecimal("29.99"), 5)
         );
         when(springDataProductRepository.findAll()).thenReturn(entities);
 
@@ -123,5 +123,11 @@ class ProductRepositoryImplTest {
 
         assertFalse(result);
         verify(springDataProductRepository, times(1)).existsById(999L);
+    }
+
+    private static ProductEntity entity(Long id, String name, String description, BigDecimal price, Integer stock) {
+        ProductEntity entity = new ProductEntity(name, description, price, stock);
+        entity.setId(id);
+        return entity;
     }
 }
