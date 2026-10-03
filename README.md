@@ -1,188 +1,258 @@
-# App Example - Spring Boot con Arquitectura Hexagonal
+# App Example
 
-Proyecto Spring Boot que implementa un CRUD de productos siguiendo una arquitectura hexagonal (o arquitectura limpia). El proyecto demuestra la separación de responsabilidades en diferentes capas y proporciona tests unitarios para las clases implementadas.
+A Spring Boot REST API for managing a product catalog (CRUD), built with Hexagonal Architecture and an in-memory H2 database.
 
-## Arquitectura Hexagonal
+![Java](https://img.shields.io/badge/Java-17%2B-blue)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-brightgreen)
+![Build](https://img.shields.io/badge/build-Maven-orange)
 
-El proyecto está organizado en tres capas principales:
+> 🇪🇸 Leer en español: [README_es.md](README_es.md)
 
-### 1. Capa de Dominio (Domain)
-Contiene la lógica de negocio y las entidades principales del sistema.
-- **Model**: `Product` - Entidad de dominio que representa un producto
-- **Port**: `ProductRepository` - Interfaz que define las operaciones de persistencia
+## Table of Contents
 
-### 2. Capa de Aplicación (Application)
-Contiene los casos de uso y servicios que coordinan la lógica de negocio.
-- **Service**: `ProductService` - Servicio que implementa los casos de uso para la gestión de productos
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [API Reference](#api-reference)
+- [Database](#database)
+- [Testing](#testing)
+- [Project Structure](#project-structure)
+- [Configuration](#configuration)
+- [Further Reading](#further-reading)
+- [Contributing](#contributing)
+- [License](#license)
 
-### 3. Capa de Infraestructura (Infrastructure)
-Contiene las implementaciones concretas de los puertos y adaptadores externos.
-- **Persistence**: `ProductEntity`, `SpringDataProductRepository`, `ProductRepositoryImpl` - Implementación JPA del repositorio
-- **Controller**: `ProductController` - Controlador REST que expone los endpoints de la API
+## Overview
 
-## Estructura del Proyecto
+This project is a reference example for developers who want to see how a small Spring Boot service can be organized using **Hexagonal Architecture** (also known as *Ports and Adapters*). The business logic is isolated from frameworks and infrastructure, which keeps it easy to test and to change.
 
-```
-src/
-├── main/
-│   ├── java/com/example/app/
-│   │   ├── AppApplication.java                    # Clase principal de Spring Boot
-│   │   ├── domain/
-│   │   │   ├── model/
-│   │   │   │   └── Product.java                   # Entidad de dominio
-│   │   │   └── port/
-│   │   │       └── ProductRepository.java          # Interfaz del repositorio
-│   │   ├── application/
-│   │   │   └── service/
-│   │   │       └── ProductService.java             # Servicio de aplicación
-│   │   └── infrastructure/
-│   │       ├── persistence/
-│   │       │   ├── ProductEntity.java              # Entidad JPA
-│   │       │   ├── SpringDataProductRepository.java # Repositorio Spring Data
-│   │       │   └── ProductRepositoryImpl.java      # Implementación del puerto
-│   │       └── controller/
-│   │           └── ProductController.java         # Controlador REST
-│   └── resources/
-│       └── application.properties                 # Configuración de la aplicación
-└── test/
-    └── java/com/example/app/
-        ├── application/
-        │   └── service/
-        │       └── ProductServiceTest.java        # Tests del servicio
-        ├── infrastructure/
-        │   ├── persistence/
-        │   │   └── ProductRepositoryImplTest.java  # Tests del repositorio
-        │   └── controller/
-        │       └── ProductControllerTest.java      # Tests del controlador
-        └── domain/
-            └── model/
-                └── ProductTest.java                # Tests de la entidad
+```mermaid
+flowchart LR
+    Client([HTTP client]) --> Controller
+
+    subgraph Infrastructure
+        Controller[ProductController<br/>REST adapter]
+        RepoImpl[ProductRepositoryImpl<br/>persistence adapter]
+        SpringData[SpringDataProductRepository<br/>Spring Data JPA]
+        Handler[GlobalExceptionHandler]
+    end
+
+    subgraph Application
+        Service[ProductService<br/>use cases]
+    end
+
+    subgraph Domain
+        Model[Product<br/>model]
+        Port[[ProductRepository<br/>port]]
+        Ex[ProductNotFoundException]
+    end
+
+    Controller --> Service
+    Service --> Port
+    Service --> Model
+    RepoImpl -. implements .-> Port
+    RepoImpl --> SpringData
+    SpringData --> DB[(H2 in-memory DB)]
 ```
 
-## Requisitos Previos
+| Layer | Responsibility | Main classes |
+|-------|----------------|--------------|
+| **Domain** | Core business model and the interfaces (ports) it depends on. No framework code. | `Product`, `ProductRepository`, `ProductNotFoundException` |
+| **Application** | Use cases that orchestrate the domain. | `ProductService` |
+| **Infrastructure** | Adapters to the outside world: REST, JPA persistence and error handling. | `ProductController`, `ProductEntity`, `SpringDataProductRepository`, `ProductRepositoryImpl`, `GlobalExceptionHandler` |
 
-- Java 17 o superior
-- Maven 3.6 o superior
-- IDE (IntelliJ IDEA, Eclipse, VS Code, etc.)
+## Requirements
 
-## Instrucciones de Ejecución
+- **Java 17** or later (JDK)
+- **Maven 3.6** or later
+- Optional: an IDE such as IntelliJ IDEA, Eclipse or VS Code
 
-### 1. Clonar el repositorio (si aplica)
+Main dependencies (managed in [`pom.xml`](pom.xml)): Spring Boot 3.2 (Web, Data JPA), H2 Database, JUnit 5 and Mockito.
+
+## Quick Start
+
 ```bash
-git clone <repository-url>
+# 1. Clone the repository
+git clone https://github.com/jorge-ls/app-example.git
 cd app-example
-```
 
-### 2. Compilar el proyecto
-```bash
-mvn clean compile
-```
+# 2. Build and run the tests
+mvn clean test
 
-### 3. Ejecutar los tests
-```bash
-mvn test
-```
-
-### 4. Ejecutar la aplicación
-```bash
+# 3. Start the application (http://localhost:8080)
 mvn spring-boot:run
 ```
 
-La aplicación se iniciará en `http://localhost:8080`
+Alternatively, build an executable JAR and run it:
 
-### 5. (Alternativa) Crear el JAR y ejecutarlo
 ```bash
 mvn clean package
 java -jar target/app-example-1.0.0.jar
 ```
 
-## API Endpoints
+## API Reference
 
-La API expone los siguientes endpoints para la gestión de productos:
+Base URL: `http://localhost:8080/api/products`
 
-### Crear Producto
-- **POST** `/api/products`
-- **Body**:
+| Method | Path | Description | Success | Errors |
+|--------|------|-------------|---------|--------|
+| `POST` | `/api/products` | Create a product | `201 Created` | — |
+| `GET` | `/api/products` | List all products | `200 OK` | — |
+| `GET` | `/api/products/{id}` | Get a product by ID | `200 OK` | `404 Not Found` |
+| `PUT` | `/api/products/{id}` | Update a product | `200 OK` | `404 Not Found` |
+| `DELETE` | `/api/products/{id}` | Delete a product | `204 No Content` | `404 Not Found` |
+
+### Request body (`POST` and `PUT`)
+
 ```json
 {
-  "name": "Nombre del producto",
-  "description": "Descripción del producto",
-  "price": 19.99,
+  "name": "Keyboard",
+  "description": "Mechanical keyboard",
+  "price": 49.99,
   "stock": 10
 }
 ```
 
-### Obtener Producto por ID
-- **GET** `/api/products/{id}`
+### Examples
 
-### Obtener Todos los Productos
-- **GET** `/api/products`
+```bash
+# Create a product
+curl -X POST http://localhost:8080/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Keyboard","description":"Mechanical keyboard","price":49.99,"stock":10}'
 
-### Actualizar Producto
-- **PUT** `/api/products/{id}`
-- **Body**:
+# List all products
+curl http://localhost:8080/api/products
+
+# Get a product by ID
+curl http://localhost:8080/api/products/1
+
+# Update a product
+curl -X PUT http://localhost:8080/api/products/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Keyboard","description":"Wireless mechanical keyboard","price":59.99,"stock":8}'
+
+# Delete a product
+curl -X DELETE http://localhost:8080/api/products/1
+```
+
+### Response example
+
 ```json
 {
-  "name": "Nombre actualizado",
-  "description": "Descripción actualizada",
-  "price": 25.99,
-  "stock": 15
+  "id": 1,
+  "name": "Keyboard",
+  "description": "Mechanical keyboard",
+  "price": 49.99,
+  "stock": 10,
+  "createdAt": "2024-01-01T10:00:00",
+  "updatedAt": "2024-01-01T10:00:00"
 }
 ```
 
-### Eliminar Producto
-- **DELETE** `/api/products/{id}`
+### Error responses
 
-## Base de Datos
+When a product does not exist, the API returns `404 Not Found` with a JSON body produced by `GlobalExceptionHandler`:
 
-El proyecto utiliza H2 Database en memoria para simplificar el desarrollo y testing. La consola de H2 está disponible en:
-- URL: `http://localhost:8080/h2-console`
-- JDBC URL: `jdbc:h2:mem:testdb`
-- Usuario: `sa`
-- Contraseña: (vacía)
-
-## Tests Unitarios
-
-El proyecto incluye tests unitarios para todas las capas:
-
-- **ProductTest**: Tests de la entidad de dominio
-- **ProductServiceTest**: Tests del servicio de aplicación con Mockito
-- **ProductRepositoryImplTest**: Tests de la implementación del repositorio
-- **ProductControllerTest**: Tests del controlador REST con MockMvc
-
-Para ejecutar todos los tests:
-```bash
-mvn test
+```json
+{
+  "timestamp": "2024-01-01T10:00:00",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Product not found with id: 99"
+}
 ```
 
-Para ejecutar una clase de test específica:
+## Database
+
+The application uses an **in-memory H2 database**, so data is lost every time the application stops. Tables are created automatically on startup.
+
+The H2 web console is enabled for development:
+
+| Setting | Value |
+|---------|-------|
+| URL | `http://localhost:8080/h2-console` |
+| JDBC URL | `jdbc:h2:mem:testdb` |
+| User | `sa` |
+| Password | *(empty)* |
+
+## Testing
+
+The project includes unit tests for every layer:
+
+| Test class | What it covers |
+|------------|----------------|
+| `ProductTest` | Domain model |
+| `ProductServiceTest` | Application service (with Mockito) |
+| `ProductRepositoryImplTest` | Persistence adapter |
+| `ProductControllerTest` | REST controller (with MockMvc), including `404` cases |
+
 ```bash
+# Run all tests
+mvn test
+
+# Run a single test class
 mvn test -Dtest=ProductServiceTest
 ```
 
-## Tecnologías Utilizadas
+## Project Structure
 
-- **Spring Boot 3.2.0**: Framework principal
-- **Spring Data JPA**: Para la persistencia de datos
-- **H2 Database**: Base de datos en memoria
-- **Maven**: Gestión de dependencias y build
-- **JUnit 5**: Framework de testing
-- **Mockito**: Framework de mocking para tests
+```
+src/
+├── main/
+│   ├── java/com/example/app/
+│   │   ├── AppApplication.java          # Spring Boot entry point
+│   │   ├── domain/                      # Business core (no framework dependencies)
+│   │   │   ├── model/                   # Product
+│   │   │   ├── port/                    # ProductRepository (outbound port)
+│   │   │   └── exception/               # ProductNotFoundException
+│   │   ├── application/
+│   │   │   └── service/                 # ProductService (use cases)
+│   │   └── infrastructure/
+│   │       ├── controller/              # ProductController (REST adapter)
+│   │       ├── persistence/             # JPA entity, Spring Data repo, port implementation
+│   │       └── exception/               # GlobalExceptionHandler
+│   └── resources/
+│       └── application.properties       # Application configuration
+└── test/java/com/example/app/           # Unit tests, mirroring the main packages
+```
 
-## Configuración
+## Configuration
 
-La configuración principal se encuentra en `src/main/resources/application.properties`:
+Settings live in [`src/main/resources/application.properties`](src/main/resources/application.properties):
 
-- Puerto del servidor: 8080
-- Base de datos: H2 en memoria
-- DDL Auto: create-drop (recrea las tablas al iniciar)
-- Consola H2: habilitada para desarrollo
+- `server.port` — HTTP port (default `8080`)
+- `spring.datasource.*` — H2 in-memory datasource
+- `spring.jpa.hibernate.ddl-auto=create-drop` — schema is recreated on every start
+- `spring.jpa.show-sql=true` — SQL statements are logged
+- `spring.h2.console.enabled=true` — H2 console enabled at `/h2-console`
 
-## Próximos Pasos Sugeridos
+Any property can be overridden at startup, for example to change the port:
 
-- Integrar una base de datos real (PostgreSQL, MySQL)
-- Agregar validación de datos (@Valid, @NotNull, etc.)
-- Implementar paginación y filtrado en los endpoints
-- Agregar documentación de API con Swagger/OpenAPI
-- Implementar autenticación y autorización
-- Agregar integración con Docker
+```bash
+mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=9090
+```
+
+## Further Reading
+
+- [Hexagonal Architecture (Alistair Cockburn)](https://alistair.cockburn.us/hexagonal-architecture/)
+- [Spring Boot documentation](https://docs.spring.io/spring-boot/docs/3.2.x/reference/html/)
+- [Spring Data JPA documentation](https://docs.spring.io/spring-data/jpa/reference/)
+- [H2 Database](https://www.h2database.com/)
+
+## Contributing
+
+Issues and pull requests are welcome. To contribute:
+
+1. Fork the repository and create a branch from `main`.
+2. Keep the layer boundaries: domain code must not depend on Spring or JPA.
+3. Add or update tests and make sure `mvn test` passes.
+4. Open a pull request describing your change.
+
+## License
+
+No license has been specified for this project yet. Until a `LICENSE` file is added, all rights are reserved by the repository owner.
+
+---
+
+_Originally written and maintained by contributors and [Devin](https://app.devin.ai), with updates from the core team._
