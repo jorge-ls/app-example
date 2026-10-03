@@ -1,5 +1,6 @@
 package com.example.app.application.service;
 
+import com.example.app.domain.exception.ProductNotFoundException;
 import com.example.app.domain.model.Product;
 import com.example.app.domain.port.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,20 +53,21 @@ class ProductServiceTest {
     void getProductById_WhenProductExists_ShouldReturnProduct() {
         when(productRepository.findById(1L)).thenReturn(Optional.of(testProduct));
 
-        Optional<Product> result = productService.getProductById(1L);
+        Product result = productService.getProductById(1L);
 
-        assertTrue(result.isPresent());
-        assertEquals(testProduct, result.get());
+        assertEquals(testProduct, result);
         verify(productRepository, times(1)).findById(1L);
     }
 
     @Test
-    void getProductById_WhenProductNotExists_ShouldReturnEmpty() {
+    void getProductById_WhenProductNotExists_ShouldThrowProductNotFoundException() {
         when(productRepository.findById(999L)).thenReturn(Optional.empty());
 
-        Optional<Product> result = productService.getProductById(999L);
+        ProductNotFoundException exception = assertThrows(ProductNotFoundException.class, () -> {
+            productService.getProductById(999L);
+        });
 
-        assertFalse(result.isPresent());
+        assertEquals("Product not found with id: 999", exception.getMessage());
         verify(productRepository, times(1)).findById(999L);
     }
 
@@ -97,13 +99,14 @@ class ProductServiceTest {
     }
 
     @Test
-    void updateProduct_WhenProductNotExists_ShouldThrowException() {
+    void updateProduct_WhenProductNotExists_ShouldThrowProductNotFoundException() {
         when(productRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class, () -> {
+        ProductNotFoundException exception = assertThrows(ProductNotFoundException.class, () -> {
             productService.updateProduct(999L, "Updated Product", "Updated Description", new BigDecimal("25.99"), 15);
         });
 
+        assertEquals("Product not found with id: 999", exception.getMessage());
         verify(productRepository, times(1)).findById(999L);
         verify(productRepository, never()).update(any(Product.class));
     }
@@ -120,13 +123,14 @@ class ProductServiceTest {
     }
 
     @Test
-    void deleteProduct_WhenProductNotExists_ShouldThrowException() {
+    void deleteProduct_WhenProductNotExists_ShouldThrowProductNotFoundException() {
         when(productRepository.existsById(999L)).thenReturn(false);
 
-        assertThrows(RuntimeException.class, () -> {
+        ProductNotFoundException exception = assertThrows(ProductNotFoundException.class, () -> {
             productService.deleteProduct(999L);
         });
 
+        assertEquals("Product not found with id: 999", exception.getMessage());
         verify(productRepository, times(1)).existsById(999L);
         verify(productRepository, never()).deleteById(any(Long.class));
     }

@@ -1,11 +1,11 @@
 package com.example.app.application.service;
 
+import com.example.app.domain.exception.ProductNotFoundException;
 import com.example.app.domain.model.Product;
 import com.example.app.domain.port.ProductRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ProductService {
@@ -21,8 +21,9 @@ public class ProductService {
         return productRepository.save(product);
     }
 
-    public Optional<Product> getProductById(Long id) {
-        return productRepository.findById(id);
+    public Product getProductById(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new ProductNotFoundException(id));
     }
 
     public List<Product> getAllProducts() {
@@ -40,12 +41,12 @@ public class ProductService {
             product.setUpdatedAt(java.time.LocalDateTime.now());
             return productRepository.update(product);
         }
-        throw new RuntimeException("Product not found with id: " + id);
+        throw new ProductNotFoundException(id);
     }
 
     public void deleteProduct(Long id) {
         if (!productRepository.existsById(id)) {
-            throw new RuntimeException("Product not found with id: " + id);
+            throw new ProductNotFoundException(id);
         }
         productRepository.deleteById(id);
     }
